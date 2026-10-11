@@ -1,0 +1,16 @@
+{
+  "name": "pumas-playground",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local capability and model-operation workbench for the public Pumas gateway",
+  "type": "module",
+  "license": "MIT",
+  "repository": "github:MrScripty/Pumas-Playground",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test --test-timeout=15000 test/*.test.mjs",
+    "test:browser": "node test/browser-smoke.mjs",
+    "test:real": "node test/real-onnx-smoke.mjs"
+  }
+}
