@@ -13,6 +13,14 @@ Local verification from this repository passed on Linux with Node 24.19.0:
 - Optional browser smoke: Chromium 151.0.7922.173 with Playwright 1.57.0 passed
   keyboard discovery, inputs/results, attachments, receipts, cancellation,
   empty models and 390px layout. Its inference is explicitly simulated.
+- Real ONNX API and browser smoke from standalone commit
+  `8489ec1cac69baf2d6d7d6e89ec902f001ca979c`: passed using the external Pumas
+  source/binary and pinned ONNX Runtime 1.24.2 already qualified in the original
+  work. All 256 values were 0.0625, the model unloaded and Pumas exited with code 0.
+  [New receipt](standalone/real-untrained-onnx.json) and
+  [new screenshot](standalone/real-untrained-onnx-browser.png) identify both
+  repository revisions. This remains an untrained graph, not semantic-model
+  qualification. No additional runtime or model download was needed.
 
 The workflow schedules the same deterministic tests on Ubuntu and Windows with
 Node 24.15.0; remote CI is unverified until a repository exists and the workflow

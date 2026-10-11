@@ -210,4 +210,5 @@ local tools and remain separate from the default test command.
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for ownership and verification. This
 repository was extracted with fresh history from the public Pumas feature branch;
 [NOTICE.md](NOTICE.md) records provenance, the unchanged MIT notice and evidence
-boundaries. No Pumas core changes are needed to launch the playground.
+boundaries. [Standalone verification](evidence/standalone.md) records checks of
+the extracted repository. No Pumas core changes are needed to launch the playground.
