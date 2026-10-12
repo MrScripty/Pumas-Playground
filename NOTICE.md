@@ -6,11 +6,13 @@ Pumas Playground was extracted with fresh Git history from
 [`bd982b67bb34e57088b5db466b3761809b6a03f6`](https://github.com/MrScripty/Pumas-Library/tree/bd982b67bb34e57088b5db466b3761809b6a03f6/tools/model-playground)
 on the unmerged `feat/model-testing-playground` branch.
 
-The upstream MIT license and `Copyright (c) 2025 MrScripty` notice are preserved
-verbatim in [LICENSE](LICENSE). The extraction changes launch paths, public source
-links and optional test configuration, and adds standalone contributor guidance
-and CI. Runtime code, model weights, third-party libraries and dependency caches
-are not copied into this repository.
+Pumas Playground is licensed under Apache-2.0; [LICENSE](LICENSE) preserves the
+license supplied by the repository owner on `main`. The upstream MIT license and
+`Copyright (c) 2025 MrScripty` notice for the extracted source are retained verbatim
+in [LICENSES/Pumas-Library-MIT.txt](LICENSES/Pumas-Library-MIT.txt). The extraction
+changes launch paths, public source links and optional test configuration, and
+adds standalone contributor guidance and CI. Runtime code, model weights,
+third-party libraries and dependency caches are not copied into this repository.
 
 The six finite adapters consume public Pumas v1 contracts inspected at
 [`ad31e391dcd94c204b3fcd748cc98d27b3281e65`](https://github.com/MrScripty/Pumas-Library/tree/ad31e391dcd94c204b3fcd748cc98d27b3281e65).

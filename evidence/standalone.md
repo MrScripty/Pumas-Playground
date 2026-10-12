@@ -22,9 +22,11 @@ Local verification from this repository passed on Linux with Node 24.19.0:
   repository revisions. This remains an untrained graph, not semantic-model
   qualification. No additional runtime or model download was needed.
 
-The workflow schedules the same deterministic tests on Ubuntu and Windows with
-Node 24.15.0; remote CI is unverified until a repository exists and the workflow
-actually runs. It installs no npm packages, models or inference runtime.
+After publication, [GitHub Actions run 38279581228](https://github.com/MrScripty/Pumas-Playground/actions/runs/38279581228)
+passed all 14 deterministic tests on both Ubuntu and Windows with Node 24.15.0 at
+commit `4e84a625b53185f4c2cb8706134c106c0a1e2d2f`. This is adapter and loopback
+transport coverage with simulated inference. The workflow installs no npm
+packages, models or inference runtime.
 
 The original [real ONNX success](real-untrained-onnx.json),
 [browser screenshot](real-untrained-onnx-browser.png), and

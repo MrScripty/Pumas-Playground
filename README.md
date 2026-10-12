@@ -207,8 +207,10 @@ job limit and read-only repository permissions. CI never launches real inference
 The optional browser and real-runtime checks above require explicitly selected
 local tools and remain separate from the default test command.
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) for ownership and verification. This
-repository was extracted with fresh history from the public Pumas feature branch;
-[NOTICE.md](NOTICE.md) records provenance, the unchanged MIT notice and evidence
-boundaries. [Standalone verification](evidence/standalone.md) records checks of
-the extracted repository. No Pumas core changes are needed to launch the playground.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for ownership and verification. Pumas
+Playground is licensed under [Apache-2.0](LICENSE). This repository was extracted
+with fresh history from the public Pumas feature branch; [NOTICE.md](NOTICE.md)
+records provenance, the [retained upstream MIT notice](LICENSES/Pumas-Library-MIT.txt)
+and evidence boundaries. [Standalone verification](evidence/standalone.md) records
+checks of the extracted repository. No Pumas core changes are needed to launch
+the playground.
