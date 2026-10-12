@@ -12,7 +12,7 @@ Clone this repository and use its Node 24 toolchain (`.node-version`). No packag
 frontend build, model weights or API subscription is needed for the playground.
 
 ```bash
-git clone https://github.com/MrScripty/Pumas-Playground.git
+git clone --branch import/standalone-playground https://github.com/MrScripty/Pumas-Playground.git
 cd Pumas-Playground
 node server.mjs --backend http://127.0.0.1:8080
 # Open http://127.0.0.1:8787 in a browser.
