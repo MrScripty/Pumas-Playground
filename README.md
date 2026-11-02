@@ -25,24 +25,27 @@ There is no remote endpoint mode. Optional `PUMAS_PLAYGROUND_TOKEN` supplies a
 Bearer header from the server environment; it is never sent to the browser or
 included in receipts. Current local Pumas HTTP does not require this header.
 
-1. Select **Discover runtime** to observe build identity, served aliases and
-   enabled plugin manifests. An empty model list is distinct from failed discovery.
-2. Select a model, optionally give its exact profile to disambiguate it, then
-   **Inspect capabilities**. Inspection returns the exact profile used by requests.
+1. Select **Discover runtime** to observe build identity, served models
+   (`GET /v1/served-models`) and enabled plugin manifests. An empty model list is
+   distinct from failed discovery.
+2. Pick one served **model · profile** entry. The picker shows its provider, load
+   state, context size and available capabilities. Then **Inspect capabilities**.
 3. Choose an available capability, edit its public JSON request and **Run request**.
-   Every click gets a new correlation ID. IDs provide no replay/idempotency promise.
+   The request carries `profile` only when `profile_required` is true (the alias is
+   served by several profiles). Every click gets a new correlation ID. IDs provide
+   no replay/idempotency promise.
 4. Inspect the response and redacted HTTP receipts. Download receipts explicitly
    if needed. Generated PNGs can be downloaded separately.
 
 Unsupported discovery returns an error and keeps inference disabled. This tool
-requires the public discovery/fencing and typed v1 operation surfaces in published
-Pumas source; the v0.7.0 release alone is not sufficient. It does not guess support
-from a model name, file format, plugin installation, or legacy `/v1/models`
-capability hints.
+requires the public discovery/fencing surface, `GET /v1/served-models` and typed v1
+operations of Pumas v0.8; earlier releases are reported as incompatible. It does not
+guess support from a model name, file format, plugin installation, or legacy
+`/v1/models` listings.
 
 ## Capability and coverage meanings
 
-Each card has two dimensions: **supported / unavailable / untested** describes the
+Each card has two dimensions: **supported / unavailable / unsupported / untested** describes the
 latest runtime observation and reviewed adapter; **untested / succeeded / error /
 unknown** describes requests in this browser session and exact runtime generation,
 model and profile. A supported card is not a real-model qualification claim.
@@ -51,12 +54,14 @@ Inspection is refreshed before every run; Pumas still owns final live admission.
 | Modality | Playground adapter | Runtime requirement |
 | --- | --- | --- |
 | Chat / text | Finite typed messages or text; text output | `chat_generation` / `text_generation` available |
-| Embeddings | Text or text batch; finite float vectors | `text_embedding` available |
+| Embeddings | Text or text batch; vector count, dimensions and cosine similarity | `text_embedding` available |
+| Multimodal embeddings | `image` or `content_batch` of text/image items; PNG/JPEG attachments become items; cosine similarity between items | `multimodal_embedding` available (llama.cpp with projector) |
+| Decision | Editable `decision` JSON (state, `choice`/`score`/`noul` questions, optional images); answers with probability meters and confidence | `decision` available (llama.cpp native decision models such as Kev, OpenJev) |
 | Transcription | Raw PCM16LE or PCM32FLE attachment; text output | `audio_transcription` available for the exact qualified audio owner |
 | Image generation | Prompt, explicit dimensions, optional seed; PNG preview/download | `image_generation` available |
-| Image to text | One PNG/JPEG plus prompt; text output | `image_to_text` available |
+| Image to text | PNG/JPEG `image` or image messages with a prompt; text output | `image_to_text` available |
 | Audio generation, image editing, 3D | Visible unavailable cards; no invented endpoint | No reviewed public contract at the inspected revision |
-| Audio classification / future capabilities | Display descriptor and unavailability; no dispatch | Requires an implemented and reviewed adapter |
+| Audio classification / any capability added later | Generic **unsupported** card ("not supported by this playground") showing the runtime state; no dispatch | Requires an implemented and reviewed adapter |
 
 For transcription, set encoding, channels and sample rate **before** attaching a
 raw `.pcm`/`.raw` file. The tool computes frames from bytes and checks the declared
@@ -65,8 +70,11 @@ audio. Pumas owns its documented conversion. For vision, the browser attaches
 PNG/JPEG bytes; Pumas owns full input decoding and runtime pixel limits. Browser
 PNG decoding must succeed before an image result is presented as successful.
 
-Streaming availability and option bounds are visible in discovery receipts, but
-this first harness intentionally sends only `stream: false`. Audio runtime
+Option bounds come from the served descriptor: `max_tokens` is bounded by the
+served context window, and templates default to at most 256 tokens within that
+bound. The request panel lists the descriptor's bounds, and they are checked
+before dispatch. Streaming availability is visible in discovery receipts, but
+this harness intentionally sends only `stream: false`. Audio runtime
 qualification can remain unavailable even when its descriptor or loader exists.
 No test-only availability override is exposed by the launcher.
 
@@ -81,7 +89,10 @@ handle transport and serialization; there is no custom HTTP or SSE parser and no
 new package dependency. A framework/build pipeline adds no needed capability for
 this bounded form and JSON inspector; it can be introduced independently later.
 
-Public producer authority was inspected at
+Public producer authority for the v0.8 additions (served-models discovery, error
+messages, one request grammar, `multimodal_embedding`, `decision`) is the
+[model operations v1 contract](https://github.com/MrScripty/Pumas-Library/blob/main/docs/contracts/model-operations-v1.md)
+and its DTOs. The original typed surface was inspected at
 [`ad31e391`](https://github.com/MrScripty/Pumas-Library/tree/ad31e391dcd94c204b3fcd748cc98d27b3281e65):
 
 - [Typed operation contract](https://github.com/MrScripty/Pumas-Library/blob/ad31e391dcd94c204b3fcd748cc98d27b3281e65/docs/contracts/model-operations-v1.md),
@@ -95,9 +106,19 @@ Public producer authority was inspected at
   the narrative contract; the tool uses live descriptors instead of assuming
   every audio loader is executable.
 
-Discovery and response DTOs accept additive fields while validating the consumed
-v1 fields; unknown capabilities cannot dispatch. Requests are a closed, deliberately
-smaller subset of the canonical DTOs, reserialized after validation. Full provider
+Responses are decoded tolerantly, as the contract requires: unknown response
+fields, capabilities, enum values (availability states, finish reasons, error
+codes) and extra list entries are ignored, and only the consumed fields are
+projected. Unknown capabilities render as unsupported cards and cannot dispatch;
+served-model entries this tool cannot address are skipped and counted. Every Pumas
+error is `{contract_version, request_id, error: {code, outcome, message}}`;
+`request_id` may be null, `outcome` is authoritative (an unrecognized outcome is
+treated as unknown), and `message` is shown prominently in the response panel,
+status line and receipts after secret redaction. Requests are a closed,
+deliberately smaller subset of the canonical grammar, reserialized after
+validation. `capability`, `semantic_task`, `options` and `profile` are optional,
+as in Pumas; without `capability` the tool resolves the operation from the
+descriptors and reports `ambiguous_operation` when two capabilities accept it. Full provider
 semantics, image decoding, native/device custody and final admission stay in Pumas.
 Future fixes can be adopted by restarting the selected backend and explicitly
 refreshing discovery. The tool pins both instance and service generation headers;
@@ -110,9 +131,9 @@ the same local user. No CORS proxy, arbitrary RPC method, endpoint, file path,
 runtime lifecycle mutation or external asset loader is exposed.
 
 Limits: 16 listener connections, one active API invocation, no work queue,
-16 MiB request, 32 MiB response, 8 MiB input file, 512 generated text tokens,
-1,048,576 generated image pixels, and 30 seconds input audio. Live descriptor
-bounds may be stricter. Embeddings and discovery have a 30-second observation
+16 MiB request, 32 MiB response, 8 MiB per input file, 4 input images per request,
+1,048,576 generated image pixels, and 30 seconds input audio. Token and other
+option bounds come from the live descriptor. Text embeddings and discovery have a 30-second observation
 budget; connecting has a 10-second budget. **Generation has no total, header,
 read or idle timeout.** An explicit cancel, browser disconnect or server shutdown
 closes owned upstream transport. Transport loss after dispatch is **unknown**,
@@ -200,7 +221,7 @@ screenshots, compatibility gaps, and the unpublished-fix dependency.
 
 ## Development and CI
 
-`npm test` runs all 14 deterministic adapter and loopback transport tests without
+`npm test` runs all 23 deterministic adapter and loopback transport tests without
 installing npm packages, native providers, browsers or models. GitHub Actions runs
 that same check on Ubuntu and Windows with the pinned Node version, a five-minute
 job limit and read-only repository permissions. CI never launches real inference.
