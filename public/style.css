@@ -313,6 +313,71 @@ footer {
 .connection #runtime {
   white-space:pre-line;
 }
+.selection #serving {
+  grid-column:1/-1;
+  margin:0;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
+.selection button {
+  justify-self:start;
+}
+.capability.unsupported {
+  border-style:dashed;
+}
+.badge.unsupported {
+  color:var(--muted);
+}
+.output .error-message {
+  color:var(--error);
+  font:600 14px/1.5 system-ui,sans-serif;
+  border-left:3px solid var(--error);
+  padding:4px 0 4px 12px;
+  margin:0 0 10px;
+}
+.output .headline {
+  font-weight:700;
+  margin:4px 0 8px;
+}
+.output .answer {
+  border-bottom:1px solid var(--border);
+  padding-bottom:10px;
+  margin-bottom:12px;
+}
+.output h3 {
+  font-size:13px;
+  margin:0 0 4px;
+  color:var(--accent);
+}
+.output table {
+  border-collapse:collapse;
+  white-space:normal;
+  margin:6px 0 12px;
+  max-width:100%;
+}
+.output th,.output td {
+  text-align:left;
+  font-weight:400;
+  padding:3px 10px 3px 0;
+  vertical-align:middle;
+}
+.output caption {
+  text-align:left;
+  color:var(--muted);
+  padding-bottom:4px;
+}
+.output .number {
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.output meter {
+  width:min(180px,30vw);
+  height:12px;
+}
+.output .vectors {
+  padding-left:20px;
+  margin:6px 0 12px;
+}
 @media(max-width:1100px) {
   .capabilities {
     grid-template-columns:repeat(3,minmax(0,1fr));

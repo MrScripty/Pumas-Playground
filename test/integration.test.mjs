@@ -3,16 +3,10 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { Transport } from '../transport.mjs';
 import { PumasClient } from '../client.mjs';
-import { template, ADAPTERS } from '../contract.mjs';
+import { ADAPTERS } from '../contract.mjs';
 import { createPlayground } from '../server.mjs';
-import { startFixture, FENCE, PNG } from './fixture.mjs';
+import { startFixture, request, FENCE } from './fixture.mjs';
 
-function request(name = 'text_generation') {
-  const value = template(name, 'fixture/model', 'fixture-profile', 'test:1');
-  if (name === 'audio_transcription') Object.assign(value.input, { sample_count: 2, data_base64: 'AAAAAA==' });
-  if (name === 'image_to_text') value.input.messages[0].content[1].data_base64 = PNG;
-  return value;
-}
 async function setup(t) {
   const fixture = await startFixture(); t.after(() => fixture.close());
   const transport = new Transport(fixture.state.endpoint, 'test-private-token');
@@ -20,7 +14,7 @@ async function setup(t) {
   await client.discover(new AbortController().signal, []);
   return { fixture, client, transport };
 }
-test('loopback HTTP discovery, fencing, plugin inventory and six finite adapters (simulated inference)', async t => {
+test('loopback HTTP discovery, fencing, plugin inventory and eight finite adapters (simulated inference)', async t => {
   const { client, fixture } = await setup(t);
   for (const name of ADAPTERS) {
     const receipts = [];
@@ -31,7 +25,7 @@ test('loopback HTTP discovery, fencing, plugin inventory and six finite adapters
     assert.equal(receipts.at(-1).execution, 'real_http');
     assert.ok(!JSON.stringify(receipts).includes('test-private-token'));
   }
-  assert.equal(fixture.state.operations.length, 6);
+  assert.equal(fixture.state.operations.length, ADAPTERS.size);
   assert.ok(fixture.state.requests.slice(1).every(r => r.headers['pumas-service-generation'] === FENCE.service));
 });
 test('unsupported, stale and malformed capabilities never admit a model operation', async t => {
@@ -46,7 +40,8 @@ test('unsupported, stale and malformed capabilities never admit a model operatio
 test('real HTTP errors, correlation loss and disconnect preserve outcomes without replay', async t => {
   const { client, fixture } = await setup(t);
   for (const [mode, code, outcome] of [['provider-error', 'provider_failure', 'unknown'], ['not-admitted', 'capability_unavailable', 'not_admitted'],
-    ['wrong-id', 'invalid_response', 'unknown'], ['disconnect', 'transport_lost', 'unknown'], ['redirect', 'redirect_refused', 'unknown'], ['not-json', 'invalid_response', 'unknown']]) {
+    ['wrong-id', 'invalid_response', 'unknown'], ['disconnect', 'transport_lost', 'unknown'], ['redirect', 'redirect_refused', 'unknown'], ['not-json', 'invalid_response', 'unknown'],
+    ['null-id-error', 'invalid_request', 'not_admitted'], ['future-error', 'quota_exhausted', 'unknown']]) {
     fixture.state.mode = mode; const before = fixture.state.operations.length;
     const result = await client.run(request(), FENCE, new AbortController().signal, []);
     assert.equal(result.error.code, code); assert.equal(result.error.outcome, outcome);
@@ -106,7 +101,7 @@ test('browser listener rejects cross-origin/missing session, returns receipts an
   assert.equal((await post('/api/discover', { id: 'bad' }, { origin: 'https://evil.example' })).status, 403);
   assert.equal((await post('/api/discover', { id: 'bad' }, { 'x-playground-session': '' })).status, 403);
   const discovery = await (await post('/api/discover', { id: 'discover' })).json();
-  assert.equal(discovery.models[0].id, 'fixture/model');
+  assert.equal(discovery.models[0].model, 'fixture/model');
   assert.equal(discovery.plugins[0].id, 'torch');
   assert.ok(!html.includes('test-private-token'));
   fixture.state.mode = 'hang';
@@ -118,4 +113,62 @@ test('browser listener rejects cross-origin/missing session, returns receipts an
   assert.equal(cancel.outcome, 'unknown');
   const result = await (await pending).json();
   assert.equal(result.error.code, 'cancel_requested'); assert.equal(result.receipts.at(-1).outcome, 'unknown');
+});
+test('served-models discovery lists one entry per model and profile; profile is required only when ambiguous', async t => {
+  const fixture = await startFixture(); t.after(() => fixture.close());
+  const client = new PumasClient(new Transport(fixture.state.endpoint));
+  const receipts = [];
+  const discovery = await client.discover(new AbortController().signal, receipts);
+  assert.deepEqual(receipts.map(r => r.path), ['/.well-known/pumas', '/v1/served-models', '/rpc']);
+  assert.deepEqual(discovery.models.map(m => `${m.model}#${m.profile}:${m.profile_required}`),
+    ['fixture/model#fixture-profile:false', 'fixture/shared#shared-a:true', 'fixture/shared#shared-b:true']);
+  assert.equal(discovery.skipped_models, 1);
+  assert.equal(discovery.models[0].provider, 'llama_cpp'); assert.equal(discovery.models[0].load_state, 'loaded');
+  assert.ok(discovery.models[0].capability_names.includes('decision'));
+  assert.ok(!discovery.models[0].capability_names.includes('audio_classification'));
+  const shared = { model: 'fixture/shared', profile: 'shared-b', profile_required: true };
+  assert.equal((await client.run(request('text_generation', shared), FENCE, new AbortController().signal, [])).state, 'succeeded');
+  const unpinned = request('text_generation', shared); delete unpinned.profile;
+  await assert.rejects(client.run(unpinned, FENCE, new AbortController().signal, []),
+    e => e.code === 'ambiguous_model' && /supply profile/.test(e.message));
+  assert.equal(fixture.state.operations.length, 1);
+  const inspected = await client.inspect('fixture/model', '', FENCE, new AbortController().signal, []);
+  assert.equal(inspected.capabilities.profile, 'fixture-profile');
+  assert.equal(inspected.rows.find(r => r.capability === 'video_generation').support, 'unsupported');
+  await assert.rejects(client.inspect('fixture/missing', '', FENCE, new AbortController().signal, []),
+    e => e.code === 'model_not_found' && e.message === 'no served model named fixture/missing');
+  fixture.state.mode = 'no-served-models';
+  await assert.rejects(client.discover(new AbortController().signal, []), e => e.code === 'unsupported_contract' && /served-models/.test(e.message));
+});
+test('typed decision and multimodal results decode through the real loopback path', async t => {
+  const { client } = await setup(t);
+  const decision = await client.run(request('decision'), FENCE, new AbortController().signal, []);
+  assert.equal(decision.capability, 'decision'); assert.equal(decision.result.input_tokens, 87);
+  assert.equal(decision.result.answers.team.choice, 'billing');
+  assert.equal(decision.result.answers.urgency.type, 'score'); assert.equal(decision.result.answers.refund.noul, 0.92);
+  assert.equal(Object.hasOwn(decision.result.answers.team, 'provider_private'), false);
+  const embedded = await client.run(request('multimodal_embedding'), FENCE, new AbortController().signal, []);
+  assert.deepEqual(embedded.result.vectors, [[1, 0], [0.6, 0.8]]);
+});
+test('Pumas error messages reach the browser API and receipts, redacted, with the authoritative outcome', async t => {
+  const fixture = await startFixture(); t.after(() => fixture.close());
+  const app = createPlayground({ backend: fixture.state.endpoint, token: 'test-private-token' });
+  await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve)); t.after(() => app.close());
+  const origin = `http://127.0.0.1:${app.server.address().port}`;
+  const session = /name="playground-session" content="([^"]+)"/.exec(await (await fetch(origin)).text())[1];
+  const post = async (path, input) => (await fetch(origin + path, { method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-playground-session': session }, body: JSON.stringify(input) })).json();
+  await post('/api/discover', { id: 'discover' });
+  fixture.state.mode = 'provider-error';
+  const failed = await post('/api/run', { id: 'run', request: request(), fence: FENCE });
+  assert.equal(failed.error.code, 'provider_failure'); assert.equal(failed.error.outcome, 'unknown');
+  assert.match(failed.error.message, /context window exceeded \(4096 tokens\)/);
+  assert.equal(failed.receipts.at(-1).error.message, failed.error.message);
+  assert.ok(!JSON.stringify(failed).includes('test-private-token'));
+  fixture.state.mode = 'success';
+  const ambiguous = await post('/api/inspect', { id: 'inspect', model: 'fixture/shared', profile: '', fence: FENCE });
+  assert.equal(ambiguous.error.code, 'ambiguous_model'); assert.match(ambiguous.error.message, /shared-a, shared-b/);
+  fixture.state.mode = 'future-finish';
+  const future = await post('/api/run', { id: 'future', request: request(), fence: FENCE });
+  assert.equal(future.state, 'succeeded'); assert.equal(future.result.finish_reason, 'tool_calls');
 });

@@ -25,6 +25,8 @@ try {
   assert.equal(await page.getByRole('button', { name: '3D generation', exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole('button', { name: 'Image editing', exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole('button', { name: 'Audio generation', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'video_generation', exact: true }).isDisabled(), true);
+  assert.match(await page.locator('.capability.unsupported').first().textContent(), /Not supported by this playground/);
   const run = async () => {
     await page.getByRole('button', { name: 'Run request', exact: true }).click();
     await page.waitForFunction(() => document.getElementById('status').textContent === 'Received and validated a correlated terminal result.');
@@ -36,8 +38,23 @@ try {
   assert.equal(fixture.state.operations.length, 0);
   await page.locator('#request').fill(original); await run();
   assert.match(await page.locator('#output').textContent(), /SIMULATED adapter response/);
+  assert.equal(JSON.parse(await page.locator('#request').inputValue()).profile, undefined);
   await page.getByRole('button', { name: 'Embeddings', exact: true }).click(); await run();
-  assert.match(await page.locator('#output').textContent(), /vectors/);
+  assert.match(await page.locator('#output').textContent(), /1 vector × 2 dimensions/);
+  await page.getByRole('button', { name: 'Multimodal embeddings', exact: true }).click();
+  await page.locator('#file').setInputFiles([{ name: 'a.png', mimeType: 'image/png', buffer: Buffer.from(PNG, 'base64') }]);
+  await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('Attached')); await run();
+  assert.match(await page.locator('#output').textContent(), /3 vectors × 2 dimensions[\s\S]*Cosine similarity/);
+  await page.getByRole('button', { name: 'Decision', exact: true }).click(); await run();
+  assert.match(await page.locator('#output').textContent(), /Choice: billing · confidence 70\.0%/);
+  assert.match(await page.locator('#output').textContent(), /True with probability 92\.0%/);
+  assert.equal(await page.locator('#output meter').count() > 6, true);
+  fixture.state.mode = 'provider-error'; await page.getByRole('button', { name: 'Run request', exact: true }).click();
+  await page.locator('#output .error-message').waitFor();
+  assert.match(await page.locator('#output .error-message').textContent(), /context window exceeded/);
+  assert.match(await page.locator('#status').textContent(), /context window exceeded.*provider_failure, outcome unknown/);
+  assert.equal(JSON.parse(await page.locator('#receipts').textContent()).error_message.includes('context window exceeded'), true);
+  fixture.state.mode = 'success';
   await page.getByRole('button', { name: 'Image generation', exact: true }).click(); await run();
   await page.locator('#output img').waitFor();
   await page.waitForFunction(() => document.querySelector('#output img').naturalWidth === 1);
@@ -55,6 +72,10 @@ try {
   await page.locator('#file').setInputFiles({ name: 'silence.pcm', mimeType: 'application/octet-stream', buffer: Buffer.alloc(32) });
   await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('Attached')); await run();
   await page.getByRole('button', { name: 'Text', exact: true }).click(); await run();
+  await page.locator('#model').selectOption({ label: 'fixture/shared · shared-b' });
+  await page.getByRole('button', { name: 'Inspect capabilities', exact: true }).click();
+  await page.waitForFunction(() => !document.getElementById('run').disabled);
+  assert.equal(JSON.parse(await page.locator('#request').inputValue()).profile, 'shared-b'); await run();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download redacted receipts', exact: true }).click();
   assert.equal((await download).suggestedFilename(), 'pumas-playground-receipt.json');
