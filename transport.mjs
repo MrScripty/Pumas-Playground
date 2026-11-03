@@ -26,7 +26,7 @@ export function redact(value, secrets = [], depth = 0) {
   }
   if (Array.isArray(value)) return value.slice(0, 128).map(item => redact(item, secrets, depth + 1));
   if (object(value)) return Object.fromEntries(Object.entries(value).slice(0, 128).map(([key, item]) => [key,
-    /(?:token|secret|password|authorization|cookie|api[_-]?key|credential)/i.test(key) && !['max_tokens', 'max_output_tokens'].includes(key)
+    /(?:token|secret|password|authorization|cookie|api[_-]?key|credential)/i.test(key) && !['max_tokens', 'max_output_tokens', 'input_tokens', 'context_tokens'].includes(key)
       ? '[REDACTED]' : /(?:base64|b64_json)/i.test(key) ? `[binary omitted: ${typeof item === 'string' ? item.length : 0} encoded characters]` : redact(item, secrets, depth + 1)]));
   return value;
 }

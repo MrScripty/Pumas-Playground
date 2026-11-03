@@ -102,10 +102,11 @@ try {
     return value;
   };
   const discovery = await post('/api/discover', { id: 'onnx-smoke-discovery' });
-  assert.ok(discovery.models.some(item => item.id === alias)); record.build = discovery.build; record.fence = discovery.fence;
+  const entry = discovery.models.find(item => item.model === alias && item.profile === profile);
+  assert.ok(entry, 'served alias missing from /v1/served-models'); record.build = discovery.build; record.fence = discovery.fence;
   const inspected = await post('/api/inspect', { id: 'onnx-smoke-inspect', model: alias, profile, fence: discovery.fence });
   assert.equal(inspected.rows.find(row => row.capability === 'text_embedding').support, 'supported');
-  const request = template('text_embedding', alias, profile, 'onnx-smoke-real-request');
+  const request = template('text_embedding', entry, 'onnx-smoke-real-request', inspected.capabilities.capabilities.find(item => item.capability === 'text_embedding'));
   request.input = mixedBatch ? { kind: 'text_batch', texts: ['hello world', 'world'] } : { kind: 'text', text: 'hello world' };
   request.options.dimensions = 256;
   const outcome = await post('/api/run', { id: 'onnx-smoke-run', request, fence: discovery.fence });
@@ -132,7 +133,7 @@ try {
     await page.locator('#request').fill(JSON.stringify(browserRequest, null, 2));
     await page.getByRole('button', { name: 'Run request', exact: true }).click();
     await page.waitForFunction(() => document.getElementById('status').textContent === 'Received and validated a correlated terminal result.');
-    const rendered = JSON.parse(await page.locator('#output').textContent());
+    const rendered = JSON.parse(await page.locator('#raw-result').textContent());
     assert.ok(rendered.vectors[0].length === 256 && rendered.vectors[0].every(v => Math.abs(v - 0.0625) < 1e-6));
     record.browser_receipt = JSON.parse(await page.locator('#receipts').textContent());
     record.browser = { version: browser.version(), real_ui_request: 'passed', visible_result: 'passed' };

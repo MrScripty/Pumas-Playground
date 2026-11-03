@@ -12,16 +12,17 @@
     <p id="status" role="status" aria-live="polite">Ready to connect. No inference has been run.</p>
     <section class="connection" aria-labelledby="connection-title">
       <div><h2 id="connection-title">Runtime</h2><p id="runtime">No runtime observation</p><p id="plugins" class="muted">Plugin manifests are inventory, not proof of inference support.</p></div>
-      <div class="selection"><label for="model">Served model</label><select id="model" disabled><option value="">Discover models first</option></select><label for="profile">Exact profile <span class="muted">optional for discovery</span></label><input id="profile" placeholder="Resolve automatically if unambiguous" autocomplete="off"><button id="inspect" class="secondary" disabled>Inspect capabilities</button></div>
+      <div class="selection"><label for="model">Served model · profile</label><select id="model" disabled aria-describedby="serving"><option value="">Discover models first</option></select><p id="serving" class="muted">No served model selected.</p><button id="inspect" class="secondary" disabled>Inspect capabilities</button></div>
     </section>
     <section aria-labelledby="capabilities-title"><div class="section-title"><h2 id="capabilities-title">Capabilities</h2><span class="muted">Availability and execution evidence are separate.</span></div><div id="capabilities" class="capabilities"></div></section>
     <div class="workbench">
       <section class="panel" aria-labelledby="request-title">
         <div class="section-title"><h2 id="request-title">01 / Request</h2><span id="selected" class="muted">Choose a supported capability</span></div>
-        <p id="request-help" class="muted">Finite requests only. The exact model, profile and capability are pinned in the request.</p>
+        <p id="request-help" class="muted">Finite requests only. The model and capability are pinned in the request; the profile is sent only when the alias is served by several profiles.</p>
         <div id="attachment" hidden><label for="file">Local input file</label><input id="file" type="file"><p id="file-help" class="muted"></p></div>
-        <label for="request">Editable public request JSON</label><textarea id="request" rows="20" spellcheck="false" disabled aria-describedby="request-help limits"></textarea>
-        <p id="limits" class="muted">One active request · ≤512 text tokens · ≤1 megapixel output · ≤30 seconds input audio · ≤16 MiB request / 32 MiB response</p>
+        <label for="request">Editable public request JSON</label><textarea id="request" rows="20" spellcheck="false" disabled aria-describedby="request-help bounds limits"></textarea>
+        <p id="bounds" class="muted"></p>
+        <p id="limits" class="muted">One active request · token and option bounds come from the served model · ≤1 megapixel output · ≤4 input images · ≤30 seconds input audio · ≤16 MiB request / 32 MiB response</p>
         <div class="actions"><button id="run" disabled>Run request</button><button id="cancel" class="secondary" disabled>Cancel request</button></div>
         <p class="muted">Generation has no elapsed deadline. Cancellation closes transport; provider cessation remains unconfirmed.</p>
       </section>
